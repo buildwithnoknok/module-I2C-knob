@@ -1,0 +1,32 @@
+# KiCad
+*.bak
+*.kicad_prl
+*.kicad_sch-bak
+*.kicad_pcb-bak
+*.kicad_sch~
+*.kicad_pcb~
+*.net
+*.xml
+fp-info-cache
+
+# Firmware build artifacts
+*.elf
+*.bin
+*.hex
+*.map
+*.o
+*.d
+build/
+cmake-build*/
+
+# Python (for Pico scripts)
+__pycache__/
+*.pyc
+
+# VSCode / IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
