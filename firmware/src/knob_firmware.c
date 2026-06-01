@@ -1,5 +1,5 @@
 /*
- * noknok Knob Module Firmware  v1.0
+ * noknok Knob Module Firmware  v1.2
  * CH32V003J4M6 (SOP-8)  |  Stack: cnlohr/ch32fun
  *
  * ── Hardware ─────────────────────────────────────────────────────────────
@@ -8,6 +8,15 @@
  *   PD6 (pin 7)  Encoder push button (active LOW, internal pull-up)
  *   PC1 (pin 3)  I2C SDA
  *   PC2 (pin 4)  I2C SCL
+ *
+ * ── Encoder counting ─────────────────────────────────────────────────────
+ *   EXTI interrupts on both edges of PA1 and PA2 (EXTI1 + EXTI2, port A).
+ *   Gray-code lookup table → ±1 per quadrature transition.
+ *   A standard EC11 with 4 pulses/detent gives 4 counts per click.
+ *
+ * ── Button behaviour ─────────────────────────────────────────────────────
+ *   50 ms debounce. Suppressed for 150 ms after any rotation (mechanical
+ *   coupling between shaft and SW pin causes false triggers during turns).
  *
  * ── Enumeration protocol ─────────────────────────────────────────────────
  *   Identical to noknok Buzzer v3.1.
@@ -28,7 +37,8 @@
  *   Pico READS 4 bytes:
  *     [posH, posL]   signed 16-bit position, big-endian
  *     [delta]        signed 8-bit change since last read (auto-cleared)
- *     [btn_state]    0x01 if button currently pressed, 0x00 if released
+ *     [btn_state]    0x01 if button pressed, 0x00 if released
+ *                    Always 0x00 within 150 ms of rotation.
  *
  *   Pico WRITES:
  *     [0x10]              RESET — set position to 0
@@ -51,7 +61,6 @@
 #define UID_ADDR        ((volatile uint8_t*)0x1FFFF7E8)
 #define UID_LEN         8
 
-/* Button debounce and rotation-lockout times in ms */
 #define BTN_DEBOUNCE_MS         50
 #define BTN_ROTATION_LOCKOUT_MS 150
 
@@ -71,26 +80,24 @@ static volatile DeviceState dev_state = DEV_BOOT_WAITING;
 static volatile uint32_t    ms_tick   = 0;
 static volatile uint8_t     new_addr  = 0;
 
-/* Encoder / button */
-static volatile int16_t  enc_position = 0;
-static volatile int8_t   enc_delta    = 0;   /* cleared when Pico reads */
-static volatile uint8_t  btn_state    = 0;   /* 1=pressed, 0=released */
-static uint8_t  btn_raw_last = 0;
-static uint32_t btn_last_change_ms = 0;
+/* Encoder */
+static volatile int16_t  enc_position    = 0;
+static volatile int8_t   enc_delta       = 0;
+static volatile uint32_t last_rotation_ms = 0;
+static volatile uint8_t  enc_last_ab     = 0;
 
-/* Encoder Gray-code state — lower 2 bits = [A, B] last reading */
-static uint8_t enc_last_ab = 0;
-
-/* Timestamp of last detected rotation — used to lock out button during turns */
-static uint32_t last_rotation_ms = 0;
-
-/* Lookup table: enc_table[prev<<2 | curr] → +1, -1, or 0 */
+/* Lookup table: enc_table[(prev<<2)|curr] → +1, -1, or 0 */
 static const int8_t enc_table[16] = {
      0, -1,  1,  0,
      1,  0,  0, -1,
     -1,  0,  0,  1,
      0,  1, -1,  0
 };
+
+/* Button */
+static volatile uint8_t  btn_state        = 0;
+static          uint8_t  btn_raw_last      = 0;
+static          uint32_t btn_last_change_ms = 0;
 
 /* I2C receive */
 #define RX_BUF_SIZE 8
@@ -104,7 +111,7 @@ static volatile uint8_t tx_buf[TX_BUF_SIZE];
 static volatile uint8_t tx_len = 0;
 static volatile uint8_t tx_idx = 0;
 
-/* Flag: delta was sent to Pico — clear it in main loop */
+/* Flag: delta was sent to Pico — clear enc_delta in main loop */
 static volatile uint8_t delta_sent = 0;
 
 /* Backoff */
@@ -129,10 +136,7 @@ static uint8_t crc8(const uint8_t *data, uint8_t len)
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * BACKOFF TIMER  —  proper FNV-1a hash of 8 UID bytes
- *   Identical algorithm to Buzzer v3.1.
- *   calc_backoff()   : range 300–2799 ms
- *   calc_rebackoff() : range 50–549 ms (short, for collision recovery)
+ * BACKOFF TIMER  —  proper FNV-1a, identical to Buzzer v3.1
  * ═══════════════════════════════════════════════════════════════════════════ */
 
 static uint32_t fnv_hash(uint32_t h)
@@ -157,7 +161,7 @@ static uint32_t calc_rebackoff_ms(void)
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * BUILD UID RESPONSE  —  10 bytes: [UID 8 bytes] + [MODULE_TYPE] + [CRC8]
+ * BUILD RESPONSES
  * ═══════════════════════════════════════════════════════════════════════════ */
 
 static void build_uid_response(void)
@@ -171,18 +175,17 @@ static void build_uid_response(void)
     tx_idx = 0;
 }
 
-/* ── Build 4-byte data response for DEV_ASSIGNED reads ─────────────────────
- *   [posH, posL, delta, btn_state]
- *   Sets delta_sent so main loop can clear enc_delta after this is read.
- */
 static void build_data_response(void)
 {
     int16_t pos = enc_position;
     int8_t  dlt = enc_delta;
+    /* Suppress button during rotation lockout — shaft mechanics couple into SW */
+    uint8_t btn = ((ms_tick - last_rotation_ms) >= BTN_ROTATION_LOCKOUT_MS)
+                  ? btn_state : 0;
     tx_buf[0] = (uint8_t)((pos >> 8) & 0xFF);
     tx_buf[1] = (uint8_t)(pos & 0xFF);
     tx_buf[2] = (uint8_t)dlt;
-    tx_buf[3] = btn_state;
+    tx_buf[3] = btn;
     tx_len = 4;
     tx_idx = 0;
     delta_sent = 1;
@@ -190,25 +193,24 @@ static void build_data_response(void)
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * GPIO INIT  —  encoder inputs and button
+ * GPIO INIT
  * ═══════════════════════════════════════════════════════════════════════════ */
 
 static void encoder_gpio_init(void)
 {
     RCC->APB2PCENR |= RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOD;
 
-    /* PA1, PA2: input with pull-up (CNF=10, MODE=00) */
+    /* PA1, PA2: input with pull-up */
     GPIOA->CFGLR &= ~((0xF << (1 * 4)) | (0xF << (2 * 4)));
     GPIOA->CFGLR |=  ((0x8 << (1 * 4)) | (0x8 << (2 * 4)));
-    GPIOA->BSHR   =  (1 << 1) | (1 << 2);   /* enable pull-ups */
+    GPIOA->BSHR   =  (1 << 1) | (1 << 2);
 
     /* PD6: input with pull-up (button, active LOW) */
     GPIOD->CFGLR &= ~(0xF << (6 * 4));
     GPIOD->CFGLR |=  (0x8 << (6 * 4));
-    GPIOD->BSHR   =  (1 << 6);              /* enable pull-up */
+    GPIOD->BSHR   =  (1 << 6);
 }
 
-/* Read encoder A and B as 2-bit value [A=bit1, B=bit0] */
 static inline uint8_t read_enc_ab(void)
 {
     uint8_t a = (GPIOA->INDR >> 1) & 1;
@@ -216,10 +218,52 @@ static inline uint8_t read_enc_ab(void)
     return (a << 1) | b;
 }
 
-/* Read button: 1=pressed (pin LOW), 0=released */
 static inline uint8_t read_btn_raw(void)
 {
     return ((GPIOD->INDR >> 6) & 1) ? 0 : 1;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * EXTI  —  hardware interrupts on both edges of PA1 (EXTI1) and PA2 (EXTI2)
+ *   Catches every quadrature transition immediately, regardless of main loop
+ *   speed. Both EXTI1 and EXTI2 share EXTI7_0_IRQn on CH32V003.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+static void exti_encoder_init(void)
+{
+    RCC->APB2PCENR |= RCC_APB2Periph_AFIO;
+
+    /* Route EXTI1 and EXTI2 to port A (bits [3:2] and [5:4] = 00 = PA) */
+    AFIO->EXTICR &= ~((0x3 << 2) | (0x3 << 4));
+
+    /* Enable interrupts on both rising and falling edges for EXTI1 and EXTI2 */
+    EXTI->INTENR |= (1 << 1) | (1 << 2);
+    EXTI->RTENR  |= (1 << 1) | (1 << 2);
+    EXTI->FTENR  |= (1 << 1) | (1 << 2);
+
+    NVIC_EnableIRQ(EXTI7_0_IRQn);
+}
+
+void EXTI7_0_IRQHandler(void) __attribute__((interrupt));
+void EXTI7_0_IRQHandler(void)
+{
+    if (EXTI->INTFR & ((1 << 1) | (1 << 2)))
+    {
+        uint8_t ab  = read_enc_ab();
+        uint8_t idx = (enc_last_ab << 2) | ab;
+        int8_t  dir = enc_table[idx];
+
+        if (dir != 0)
+        {
+            enc_position     += dir;
+            enc_delta        += dir;
+            last_rotation_ms  = ms_tick;
+        }
+
+        enc_last_ab = ab;
+        EXTI->INTFR = (1 << 1) | (1 << 2);   /* clear pending flags */
+    }
 }
 
 
@@ -374,32 +418,10 @@ static void process_command(void)
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * ENCODER POLL  —  called from main loop on every iteration
- *   Quadrature decoding via 4-entry Gray-code lookup table.
- *   Updates enc_position and enc_delta atomically relative to interrupts.
- * ═══════════════════════════════════════════════════════════════════════════ */
-
-static void poll_encoder(void)
-{
-    uint8_t ab  = read_enc_ab();
-    uint8_t idx = (enc_last_ab << 2) | ab;
-    int8_t  dir = enc_table[idx];
-
-    if (dir != 0)
-    {
-        __disable_irq();
-        enc_position += dir;
-        enc_delta    += dir;
-        __enable_irq();
-        last_rotation_ms = ms_tick;   /* start rotation lockout window */
-    }
-
-    enc_last_ab = ab;
-}
-
-
-/* ═══════════════════════════════════════════════════════════════════════════
  * BUTTON POLL  —  debounced, called from main loop
+ *   During rotation lockout: force btn_state=0 and reset debounce tracker
+ *   so the button must re-debounce from scratch after every turn ends.
+ *   This prevents the SW pin's mechanical coupling from causing false presses.
  * ═══════════════════════════════════════════════════════════════════════════ */
 
 static void poll_button(void)
@@ -407,11 +429,13 @@ static void poll_button(void)
     uint8_t  raw = read_btn_raw();
     uint32_t now = ms_tick;
 
-    /* Ignore button changes while the knob is turning or just finished turning.
-     * Rotation physically stresses the switch pin and causes false triggers. */
     if ((now - last_rotation_ms) < BTN_ROTATION_LOCKOUT_MS)
     {
-        btn_raw_last = raw;   /* stay in sync so no phantom edge on unlock */
+        /* Inside lockout: clear btn_state and reset debounce so the button
+         * starts clean when the lockout window expires. */
+        btn_state          = 0;
+        btn_raw_last       = raw;
+        btn_last_change_ms = now;
         return;
     }
 
@@ -421,7 +445,6 @@ static void poll_button(void)
         btn_last_change_ms = now;
     }
 
-    /* Commit only after the signal has been stable for the debounce period */
     if ((now - btn_last_change_ms) >= BTN_DEBOUNCE_MS)
         btn_state = raw;
 }
@@ -437,9 +460,10 @@ int main(void)
     tim2_init();
     encoder_gpio_init();
 
-    /* Seed initial encoder state so first poll produces no phantom step */
+    /* Seed initial encoder state before enabling EXTI */
     enc_last_ab = read_enc_ab();
 
+    exti_encoder_init();
     calc_backoff();
 
     __enable_irq();
@@ -459,7 +483,6 @@ int main(void)
 
         if (dev_state == DEV_ENUM_READY && (now - enum_ready_start_ms) > 200)
         {
-            /* Not assigned within 200 ms — likely a collision. Re-backoff. */
             I2C1->CTLR1 &= ~I2C_CTLR1_PE;
             backoff_ms = calc_rebackoff_ms();
             dev_state  = DEV_BOOT_WAITING;
@@ -473,14 +496,12 @@ int main(void)
 
         /* ── Normal operation ──────────────────────────────────── */
 
-        poll_encoder();
         poll_button();
 
         if (dev_state == DEV_ASSIGNED)
         {
             if (delta_sent)
             {
-                /* Pico has read the delta — clear it atomically */
                 __disable_irq();
                 delta_sent = 0;
                 enc_delta  = 0;
