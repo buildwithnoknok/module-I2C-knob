@@ -1,5 +1,5 @@
 /*
- * noknok Knob Module Firmware  v1.4
+ * noknok Knob Module Firmware  v1.5
  * CH32V003J4M6 (SOP-8)  |  Stack: cnlohr/ch32fun
  *
  * ── Hardware ─────────────────────────────────────────────────────────────
@@ -85,6 +85,7 @@ static volatile int16_t  enc_position    = 0;
 static volatile int8_t   enc_delta       = 0;
 static volatile uint32_t last_rotation_ms = 0;
 static volatile uint8_t  enc_last_ab     = 0;
+static volatile int8_t   enc_sub         = 0;  /* sub-step: 2 raw transitions = 1 count */
 
 /* Lookup table: enc_table[(prev<<2)|curr] → +1, -1, or 0 */
 static const int8_t enc_table[16] = {
@@ -258,9 +259,10 @@ void EXTI7_0_IRQHandler(void)
 
         if (dir != 0)
         {
-            enc_position     += dir;
-            enc_delta        += dir;
-            last_rotation_ms  = ms_tick;
+            last_rotation_ms = ms_tick;
+            enc_sub += dir;
+            if (enc_sub >= 2)      { enc_sub -= 2; enc_position++; enc_delta++; }
+            else if (enc_sub <= -2){ enc_sub += 2; enc_position--; enc_delta--; }
         }
 
         enc_last_ab = ab;
