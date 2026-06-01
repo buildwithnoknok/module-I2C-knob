@@ -1,13 +1,13 @@
 /*
- * noknok Knob Module Firmware  v1.3
+ * noknok Knob Module Firmware  v1.4
  * CH32V003J4M6 (SOP-8)  |  Stack: cnlohr/ch32fun
  *
  * ── Hardware ─────────────────────────────────────────────────────────────
- *   PA1 (pin 2)  Encoder A (CLK)
- *   PA2 (pin 1)  Encoder B (DT)
- *   PD6 (pin 7)  Encoder push button (active LOW, internal pull-up)
- *   PC1 (pin 3)  I2C SDA
- *   PC2 (pin 4)  I2C SCL
+ *   PA2          Encoder A (active LOW, internal pull-up)
+ *   PD6/PA1      Encoder B (active LOW, internal pull-up; read as PA1 via GPIOA)
+ *   PC4          Encoder push button S2 (active LOW; S1 and C are grounded)
+ *   PC1          I2C SDA
+ *   PC2          I2C SCL
  *
  * ── Encoder counting ─────────────────────────────────────────────────────
  *   EXTI interrupts on both edges of PA1 and PA2 (EXTI1 + EXTI2, port A).
@@ -198,17 +198,17 @@ static void build_data_response(void)
 
 static void encoder_gpio_init(void)
 {
-    RCC->APB2PCENR |= RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOD;
+    RCC->APB2PCENR |= RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOC;
 
-    /* PA1, PA2: input with pull-up */
+    /* PA1 (ENC_B) and PA2 (ENC_A): input with pull-up */
     GPIOA->CFGLR &= ~((0xF << (1 * 4)) | (0xF << (2 * 4)));
     GPIOA->CFGLR |=  ((0x8 << (1 * 4)) | (0x8 << (2 * 4)));
     GPIOA->BSHR   =  (1 << 1) | (1 << 2);
 
-    /* PD6: input with pull-up (button, active LOW) */
-    GPIOD->CFGLR &= ~(0xF << (6 * 4));
-    GPIOD->CFGLR |=  (0x8 << (6 * 4));
-    GPIOD->BSHR   =  (1 << 6);
+    /* PC4: input with pull-up (button S2, active LOW; S1+C are grounded) */
+    GPIOC->CFGLR &= ~(0xF << (4 * 4));
+    GPIOC->CFGLR |=  (0x8 << (4 * 4));
+    GPIOC->BSHR   =  (1 << 4);
 }
 
 static inline uint8_t read_enc_ab(void)
@@ -222,7 +222,7 @@ static inline uint8_t read_enc_ab(void)
 
 static inline uint8_t read_btn_raw(void)
 {
-    return ((GPIOD->INDR >> 6) & 1) ? 0 : 1;
+    return ((GPIOC->INDR >> 4) & 1) ? 0 : 1;   /* PC4, active LOW */
 }
 
 
