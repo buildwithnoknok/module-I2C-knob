@@ -60,13 +60,9 @@ Typical use cases:
 
 ### Enumeration
 
-The module uses the standard noknok dynamic address assignment protocol (identical to the Buzzer module):
+The module uses the standard noknok dynamic enumeration protocol — no hardcoded I²C address.
 
-1. On boot, I²C is OFF. The module counts a UID-derived backoff delay (300–2800 ms) to avoid bus collisions when multiple modules power up together.
-2. After backoff, I²C starts at staging address **0x7F**.
-3. The Conductor reads a 10-byte response: `[UID × 8 bytes] [0x02 = MODULE_TYPE] [CRC8]`.
-4. The Conductor writes `[0x1D, new_addr]` to assign a runtime address.
-5. If not assigned within 200 ms, the module re-enters backoff (short range: 50–550 ms) to recover from collisions.
+**→ Full protocol spec:** [Ecosystem / software / enumeration.md](https://github.com/buildwithnoknok/Ecosystem/blob/main/software/enumeration.md)
 
 ### I²C Protocol (normal operation)
 
@@ -108,13 +104,28 @@ knob = c.knob[0]               # first knob by discovery order
 # or: knob = c.role["volume"]  # by role name after setup_roles()
 
 s = knob.read()
-print(s.position)              # signed int, cumulative turns
-print(s.delta)                 # change since last read (auto-clears)
-print(s.pressed)               # True if button held down
+if s is not None:
+    print(s.position)          # signed int, cumulative turns
+    print(s.delta)             # change since last read (auto-clears)
+    print(s.pressed)           # True if button held down
 
 knob.reset()                   # set position to 0
 knob.set_position(50)          # set to any signed 16-bit value
 ```
+
+---
+
+## Firmware
+
+Source is in `firmware/src/`. To build and flash, clone this repo alongside your ch32fun installation and run:
+
+```bash
+cd firmware/src
+make        # compile
+make flash  # compile + flash via WCH Link-E
+```
+
+> ch32fun must be installed at `../ch32fun/` relative to `firmware/src/` — see [cnlohr/ch32v003fun](https://github.com/cnlohr/ch32v003fun) for setup instructions.
 
 ---
 
@@ -124,7 +135,7 @@ knob.set_position(50)          # set to any signed 16-bit value
 |---|---|
 | Hardware | v1.0 complete |
 | Firmware | v1.5 complete |
-| Python driver | Complete (NoknokKnob in noknok.py) |
+| Python driver | Complete (`NoknokKnob` in [Ecosystem repo](https://github.com/buildwithnoknok/Ecosystem/tree/main/software/pico)) |
 | Documentation | Complete |
 
 ---
