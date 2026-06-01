@@ -51,8 +51,9 @@
 #define UID_ADDR        ((volatile uint8_t*)0x1FFFF7E8)
 #define UID_LEN         8
 
-/* Button debounce time in ms */
-#define BTN_DEBOUNCE_MS 20
+/* Button debounce and rotation-lockout times in ms */
+#define BTN_DEBOUNCE_MS         50
+#define BTN_ROTATION_LOCKOUT_MS 150
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -79,6 +80,9 @@ static uint32_t btn_last_change_ms = 0;
 
 /* Encoder Gray-code state — lower 2 bits = [A, B] last reading */
 static uint8_t enc_last_ab = 0;
+
+/* Timestamp of last detected rotation — used to lock out button during turns */
+static uint32_t last_rotation_ms = 0;
 
 /* Lookup table: enc_table[prev<<2 | curr] → +1, -1, or 0 */
 static const int8_t enc_table[16] = {
@@ -387,6 +391,7 @@ static void poll_encoder(void)
         enc_position += dir;
         enc_delta    += dir;
         __enable_irq();
+        last_rotation_ms = ms_tick;   /* start rotation lockout window */
     }
 
     enc_last_ab = ab;
@@ -402,13 +407,21 @@ static void poll_button(void)
     uint8_t  raw = read_btn_raw();
     uint32_t now = ms_tick;
 
-    if (raw != btn_raw_last)
+    /* Ignore button changes while the knob is turning or just finished turning.
+     * Rotation physically stresses the switch pin and causes false triggers. */
+    if ((now - last_rotation_ms) < BTN_ROTATION_LOCKOUT_MS)
     {
-        btn_raw_last        = raw;
-        btn_last_change_ms  = now;
+        btn_raw_last = raw;   /* stay in sync so no phantom edge on unlock */
+        return;
     }
 
-    /* Only commit state after debounce period has elapsed */
+    if (raw != btn_raw_last)
+    {
+        btn_raw_last       = raw;
+        btn_last_change_ms = now;
+    }
+
+    /* Commit only after the signal has been stable for the debounce period */
     if ((now - btn_last_change_ms) >= BTN_DEBOUNCE_MS)
         btn_state = raw;
 }
