@@ -1,5 +1,5 @@
 /*
- * noknok Knob Module Firmware  v1.2
+ * noknok Knob Module Firmware  v1.3
  * CH32V003J4M6 (SOP-8)  |  Stack: cnlohr/ch32fun
  *
  * ── Hardware ─────────────────────────────────────────────────────────────
@@ -213,8 +213,10 @@ static void encoder_gpio_init(void)
 
 static inline uint8_t read_enc_ab(void)
 {
-    uint8_t a = (GPIOA->INDR >> 1) & 1;
-    uint8_t b = (GPIOA->INDR >> 2) & 1;
+    /* A = PA2 (active low), B = PA1 (active low) — per Wagiminator reference.
+     * Invert both so 1 means "encoder contact closed". */
+    uint8_t a = !((GPIOA->INDR >> 2) & 1);   /* PA2 = ENC_A */
+    uint8_t b = !((GPIOA->INDR >> 1) & 1);   /* PA1 = ENC_B */
     return (a << 1) | b;
 }
 
