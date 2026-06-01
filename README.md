@@ -1,4 +1,4 @@
-# Rotary Encoder Module (I²C)
+# noknok Knob
 
 An I²C‑controlled rotary encoder module for the noknok ecosystem.  
 Designed for smooth, reliable user input such as volume control, menu navigation, and parameter adjustment.
