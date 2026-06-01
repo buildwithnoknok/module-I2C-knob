@@ -112,9 +112,6 @@ static volatile uint8_t tx_buf[TX_BUF_SIZE];
 static volatile uint8_t tx_len = 0;
 static volatile uint8_t tx_idx = 0;
 
-/* Flag: delta was sent to Pico — clear enc_delta in main loop */
-static volatile uint8_t delta_sent = 0;
-
 /* Backoff */
 static uint32_t backoff_ms;
 static uint32_t enum_ready_start_ms = 0;
@@ -179,7 +176,15 @@ static void build_uid_response(void)
 static void build_data_response(void)
 {
     int16_t pos = enc_position;
-    int8_t  dlt = enc_delta;
+
+    /* Read enc_delta and clear it atomically here in the ISR.
+     * Clearing here (not in the main loop) prevents a race where encoder
+     * transitions arriving between this read and a deferred main-loop clear
+     * would be silently discarded. Any transitions after this point will
+     * correctly accumulate into enc_delta for the next read. */
+    int8_t dlt  = enc_delta;
+    enc_delta   = 0;
+
     /* Suppress button during rotation lockout — shaft mechanics couple into SW */
     uint8_t btn = ((ms_tick - last_rotation_ms) >= BTN_ROTATION_LOCKOUT_MS)
                   ? btn_state : 0;
@@ -189,7 +194,6 @@ static void build_data_response(void)
     tx_buf[3] = btn;
     tx_len = 4;
     tx_idx = 0;
-    delta_sent = 1;
 }
 
 
@@ -504,14 +508,6 @@ int main(void)
 
         if (dev_state == DEV_ASSIGNED)
         {
-            if (delta_sent)
-            {
-                __disable_irq();
-                delta_sent = 0;
-                enc_delta  = 0;
-                __enable_irq();
-            }
-
             if (cmd_ready)
             {
                 cmd_ready = 0;
