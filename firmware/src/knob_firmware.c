@@ -57,6 +57,14 @@
 #define REG_ASSIGN_ADDR 0x1D
 #define CMD_RESET_POS   0x10
 #define CMD_SET_POS     0x11
+#define CMD_ENTER_BOOTLOADER 0xB0   /* reset into the I2C bootloader for OTA update */
+
+/* Bootloader handoff cell — top 16 B of RAM, reserved by app.ld (stack ends
+ * below it). Writing this magic then warm-resetting drops the module into the
+ * shared noknok I2C bootloader (flash mode at 0x7E). SRAM survives a warm reset.
+ * Magic + address MUST match noknok_bootloader. */
+#define BL_MAGIC_CELL   (*(volatile uint32_t *)0x200007F0U)
+#define BL_MAGIC_ENTER  0x6E6B4231U   /* "nkB1" */
 
 #define UID_ADDR        ((volatile uint8_t*)0x1FFFF7E8)
 #define UID_LEN         8
@@ -421,6 +429,13 @@ static void process_command(void)
         int16_t new_pos = ((int16_t)rx_buf[1] << 8) | rx_buf[2];
         enc_delta    += (new_pos - enc_position);
         enc_position  = new_pos;
+    }
+    else if (cmd == CMD_ENTER_BOOTLOADER)
+    {
+        /* OTA update requested: arm the handoff magic and warm-reset into the
+         * bootloader (0x7E). NVIC_SystemReset() does not clear SRAM. */
+        BL_MAGIC_CELL = BL_MAGIC_ENTER;
+        NVIC_SystemReset();
     }
 }
 

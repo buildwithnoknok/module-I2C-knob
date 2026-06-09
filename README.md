@@ -56,7 +56,7 @@ Typical use cases:
 
 ## Firmware
 
-**Version: v1.5**
+**Version: v2.0 (bootloader‑hosted)**
 
 ### Enumeration
 
@@ -82,6 +82,7 @@ The module uses the standard noknok dynamic enumeration protocol — no hardcode
 |---|---|
 | `[0x10]` | Reset position to 0 |
 | `[0x11, posH, posL]` | Set position to signed 16-bit value |
+| `[0xB0]` | Enter bootloader — reset into the I²C bootloader for an OTA firmware update (see [Firmware](#firmware-1)) |
 
 ### Encoder counting
 
@@ -117,15 +118,16 @@ knob.set_position(50)          # set to any signed 16-bit value
 
 ## Firmware
 
-Source is in `firmware/src/`. To build and flash, clone this repo alongside your ch32fun installation and run:
+**v2.0 runs under the shared noknok I²C bootloader** ([module-I2C-bootloader](https://github.com/buildwithnoknok/module-I2C-bootloader)) — the module can be re‑flashed **over the I²C bus** (no SWDIO cable in the field). The application is linked at the `0x1000` offset (`app.ld`) above the 4 KB bootloader and reserves the top 16 B of RAM for the bootloader handoff cell. Command `0xB0` drops the running module into the bootloader for an update.
 
 ```bash
 cd firmware/src
-make        # compile
-make flash  # compile + flash via WCH Link-E
+make build   # compile the offset-linked application -> knob_firmware.bin
 ```
 
-> ch32fun must be installed at `../ch32fun/` relative to `firmware/src/` — see [cnlohr/ch32v003fun](https://github.com/cnlohr/ch32v003fun) for setup instructions.
+> ch32fun must be installed at `../ch32fun/` relative to `firmware/src/` — see [cnlohr/ch32v003fun](https://github.com/cnlohr/ch32v003fun) for setup.
+
+Flashing: normally over I²C from the Pico (`module_flasher.py` in `brain-Pico`). A blank board needs the bootloader SWD‑flashed once first. SWD remains the unbrickable backstop — see *Recovery & SWD flashing* in the [bootloader README](https://github.com/buildwithnoknok/module-I2C-bootloader#recovery--swd-flashing). `make flash` here still does a one‑off SWD flash of the app for bench bring‑up.
 
 ---
 
@@ -134,7 +136,7 @@ make flash  # compile + flash via WCH Link-E
 | Item | Status |
 |---|---|
 | Hardware | v1.0 complete |
-| Firmware | v1.5 complete |
+| Firmware | v2.0 complete (bootloader‑hosted, I²C OTA) |
 | Python driver | Complete (`NoknokKnob` in [Ecosystem repo](https://github.com/buildwithnoknok/Ecosystem/tree/main/software/pico)) |
 | Documentation | Complete |
 
