@@ -30,3 +30,6 @@ __pycache__/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Keep released firmware binaries (distributable, flashed over I2C)
+!firmware/bin/*.bin
