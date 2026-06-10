@@ -56,7 +56,7 @@ Typical use cases:
 
 ## Firmware
 
-**Version: v2.0 (bootloader‑hosted)**
+**Version: v2.1 (bootloader‑hosted)**
 
 ### Enumeration
 
@@ -83,6 +83,9 @@ The module uses the standard noknok dynamic enumeration protocol — no hardcode
 | `[0x10]` | Reset position to 0 |
 | `[0x11, posH, posL]` | Set position to signed 16-bit value |
 | `[0xB0]` | Enter bootloader — reset into the I²C bootloader for an OTA firmware update (see [Firmware](#firmware-1)) |
+| `[0xB1]` | Get version — standard noknok command; the next read returns 4 version bytes (see below) |
+
+**Version read** — `GET_VERSION` (`0xB1`) is a **noknok ecosystem-standard** command (the `0xB0`–`0xBF` range is reserved for standard commands across every module). Write `0xB1`, then read **4 bytes**: `[PROTOCOL_VERSION, FW_MAJOR, FW_MINOR, FW_PATCH]` = `[0x01, 2, 1, 0]`. Lets the Conductor compare the installed version against the version required by the product manifest. **→ Full spec:** [Ecosystem / software / readme.md §5](https://github.com/buildwithnoknok/Ecosystem/blob/main/software/readme.md#5-standard-system-commands)
 
 ### Encoder counting
 
@@ -118,7 +121,7 @@ knob.set_position(50)          # set to any signed 16-bit value
 
 ## Firmware
 
-**v2.0 runs under the shared noknok I²C bootloader** ([module-I2C-bootloader](https://github.com/buildwithnoknok/module-I2C-bootloader)) — the module can be re‑flashed **over the I²C bus** (no SWDIO cable in the field). The application is linked at the `0x1000` offset (`app.ld`) above the 4 KB bootloader and reserves the top 16 B of RAM for the bootloader handoff cell. Command `0xB0` drops the running module into the bootloader for an update.
+**v2.1 runs under the shared noknok I²C bootloader** ([module-I2C-bootloader](https://github.com/buildwithnoknok/module-I2C-bootloader)) — the module can be re‑flashed **over the I²C bus** (no SWDIO cable in the field). The application is linked at the `0x1000` offset (`app.ld`) above the 4 KB bootloader and reserves the top 16 B of RAM for the bootloader handoff cell. Command `0xB0` drops the running module into the bootloader for an update.
 
 ```bash
 cd firmware/src
@@ -136,7 +139,7 @@ Flashing: normally over I²C from the Pico (`module_flasher.py` in `brain-Pico`)
 | Item | Status |
 |---|---|
 | Hardware | v1.0 complete |
-| Firmware | v2.0 complete (bootloader‑hosted, I²C OTA) |
+| Firmware | v2.1 complete (bootloader‑hosted, I²C OTA) |
 | Python driver | Complete (`NoknokKnob` in [Ecosystem repo](https://github.com/buildwithnoknok/Ecosystem/tree/main/software/pico)) |
 | Documentation | Complete |
 

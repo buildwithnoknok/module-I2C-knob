@@ -1,5 +1,5 @@
 /*
- * noknok Knob Module Firmware  v1.5
+ * noknok Knob Module Firmware  v2.1
  * CH32V003J4M6 (SOP-8)  |  Stack: cnlohr/ch32fun
  *
  * ── Hardware ─────────────────────────────────────────────────────────────
@@ -43,6 +43,14 @@
  *   Pico WRITES:
  *     [0x10]              RESET — set position to 0
  *     [0x11, posH, posL]  SET POSITION — set position to given value
+ *     [0xB0]              ENTER BOOTLOADER (I2C OTA update)
+ *     [0xB1]              GET VERSION — next read returns 4 version bytes
+ *
+ *   Pico READS (after 0xB1):
+ *     4 bytes: [PROTOCOL_VER, FW_MAJOR, FW_MINOR, FW_PATCH]
+ *
+ *   GET_VERSION (0xB1) is a noknok ecosystem-standard command (range
+ *   0xB0–0xBF reserved). See Ecosystem/software/readme.md §5.
  */
 
 #include "ch32fun.h"
@@ -58,6 +66,17 @@
 #define CMD_RESET_POS   0x10
 #define CMD_SET_POS     0x11
 #define CMD_ENTER_BOOTLOADER 0xB0   /* reset into the I2C bootloader for OTA update */
+#define CMD_GET_VERSION 0xB1        /* report [PROTOCOL_VERSION, FW_MAJOR, FW_MINOR, FW_PATCH] */
+
+/* ── Version reporting (noknok standard command, DEV-1) ──────────────────────
+ * PROTOCOL_VERSION = which noknok protocol/API this module speaks — NOT the
+ * firmware version. Bumped only when the shared protocol changes. The
+ * FW_VERSION_* triple is this module's firmware semver; keep it equal to the
+ * release tag. Reported on a GET_VERSION (0xB1) read. */
+#define PROTOCOL_VERSION 0x01
+#define FW_VERSION_MAJOR 2
+#define FW_VERSION_MINOR 1
+#define FW_VERSION_PATCH 0
 
 /* Bootloader handoff cell — top 16 B of RAM, reserved by app.ld (stack ends
  * below it). Writing this magic then warm-resetting drops the module into the
@@ -87,6 +106,7 @@ typedef enum {
 static volatile DeviceState dev_state = DEV_BOOT_WAITING;
 static volatile uint32_t    ms_tick   = 0;
 static volatile uint8_t     new_addr  = 0;
+static volatile uint8_t     version_pending = 0; /* set in ISR on 0xB1; next read returns version */
 
 /* Encoder */
 static volatile int16_t  enc_position    = 0;
@@ -200,6 +220,17 @@ static void build_data_response(void)
     tx_buf[1] = (uint8_t)(pos & 0xFF);
     tx_buf[2] = (uint8_t)dlt;
     tx_buf[3] = btn;
+    tx_len = 4;
+    tx_idx = 0;
+}
+
+/* 4-byte GET_VERSION response: [PROTOCOL_VERSION, FW_MAJOR, FW_MINOR, FW_PATCH] */
+static void build_version_response(void)
+{
+    tx_buf[0] = PROTOCOL_VERSION;
+    tx_buf[1] = FW_VERSION_MAJOR;
+    tx_buf[2] = FW_VERSION_MINOR;
+    tx_buf[3] = FW_VERSION_PATCH;
     tx_len = 4;
     tx_idx = 0;
 }
@@ -358,6 +389,13 @@ void I2C1_EV_IRQHandler(void)
                 build_uid_response();
                 I2C1->DATAR = tx_buf[tx_idx++];
             }
+            else if (version_pending)
+            {
+                /* Previous write was GET_VERSION → return the 4 version bytes */
+                version_pending = 0;
+                build_version_response();
+                I2C1->DATAR = tx_buf[tx_idx++];
+            }
             else
             {
                 build_data_response();
@@ -394,7 +432,12 @@ void I2C1_EV_IRQHandler(void)
         }
         else if (dev_state == DEV_ASSIGNED)
         {
-            if (rx_len > 0) cmd_ready = 1;
+            /* GET_VERSION is handled entirely in the ISR: latch it so the next
+             * read returns the version bytes. Don't route it to the main loop. */
+            if (rx_len == 1 && rx_buf[0] == CMD_GET_VERSION)
+                version_pending = 1;
+            else if (rx_len > 0)
+                cmd_ready = 1;
         }
 
         I2C1->CTLR1 |= I2C_CTLR1_ACK;
