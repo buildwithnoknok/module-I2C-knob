@@ -1,0 +1,26 @@
+{
+  "schema": "noknok-housing/1",
+  "module": "noknok-knob",
+  "repo": "module-I2C-knob",
+  "bus": "I2C",
+  "footprint": { "w": 20, "h": 20 },
+  "pcb_thickness": 1.6,
+  "clearance_top": null,
+  "clearance_bottom": null,
+  "mounting": {
+    "screw": "M2.5",
+    "holes": [
+      { "x": 2.25,  "y": 2.25,  "dia": 2.5 },
+      { "x": 17.75, "y": 17.75, "dia": 2.5 }
+    ]
+  },
+  "connectors": [
+    { "type": "JST-SH-I2C", "edge": "W", "x": 3.1,  "y": 4.5,  "role": "chain" },
+    { "type": "JST-SH-I2C", "edge": "E", "x": 16.9, "y": 15.5, "role": "chain" }
+  ],
+  "top_feature": {
+    "type": "round_hole", "shape": "circle", "x": 10, "y": 10, "dia": 7.5,
+    "depth": "through", "verified": false
+  },
+  "notes": "EC11 rotary encoder shaft (6 mm shaft, ~7.5 mm clearance hole). EC11 body is tall - clearance_top will be significant. clearance_top/bottom pending physical measurement; connector x/y and shaft position transcribed/estimated (shaft assumed centered) - regenerate exact values from KiCad + measure before production."
+}
