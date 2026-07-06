@@ -5,7 +5,7 @@
   "bus": "I2C",
   "footprint": { "w": 20, "h": 20 },
   "pcb_thickness": 1.6,
-  "clearance_top": null,
+  "clearance_top": 7.5,
   "clearance_bottom": 3.0,
   "mounting": {
     "screw": "M2",
@@ -19,8 +19,8 @@
     { "type": "JST-SH-I2C", "edge": "E", "x": 16.9, "y": 4.5,  "role": "chain" }
   ],
   "top_feature": {
-    "type": "round_hole", "shape": "circle", "x": 12.5, "y": 2.75, "dia": 7.5,
-    "depth": "through", "verified": false
+    "type": "round_hole", "shape": "circle", "x": 10.0, "y": 10.25, "dia": 7.0,
+    "depth": "through", "verified": true
   },
-  "notes": "Positions from the knob production CSV + Edge_Cuts gerber (2026-04-08). Board 20x20, JST J1/J2 and M2 mounting holes are IDENTICAL to the buzzer -> the buzzer housing template applies directly (connectors verified: W near North y=15.5, E near South y=4.5, same convention). Payload = Alps EC11 rotary encoder (SW1), through-hole, on the top side; top_feature = round hole for the shaft. THREE THINGS STILL NEEDED before this housing is right: (1) clearance_top = EC11 body height above the PCB (the shaft/bushing pokes THROUGH the hole; body ~6.5 mm typ, confirm); (2) the true SHAFT CENTRE x/y - the CSV footprint origin maps to top-view (12.5, 2.75) which sits only 2.75 mm from the south edge, so a 12 mm body would overhang: the origin is almost certainly an anchor, NOT the shaft centre - confirm from Fusion/KiCad; (3) the shaft/threaded-bushing diameter to size the hole (7.5 mm placeholder). Also note the EC11 is THT so its pins protrude on the BOTTOM near the encoder - keep in mind for clearance_bottom. mounting[] = the real board M2 (Ø2.2) holes; not used by the housing (edge-ledge design)."
+  "notes": "Positions from the knob production CSV + Edge_Cuts gerber (2026-04-08); board 20x20. JST J1/J2 and M2 mounting are IDENTICAL to the buzzer -> the buzzer housing template applies directly (connectors verified: W near North y=15.5, E near South y=4.5). Payload = Alps EC11E18244AU vertical rotary encoder (SW1), through-hole, on the top side. Shaft confirmed (Christopher) centred at (10, 10.25) - 10 mm from W/E, 9.75 from N / 10.25 from S; shaft ø6 mm, 20 mm long, push-switch travel 0.5 mm. top_feature = round hole ø7 (ø6 shaft + clearance; knob cap presses on the shaft above the cover). clearance_top=7.5 = EC11 body height above the PCB (datasheet 7.5 max). clearance_bottom=3.0 governed by the JST-SH socket (2.9); the EC11 THT pins also protrude on the bottom but are shorter. mounting[] = real board M2 (Ø2.2) holes; not used by the housing (edge-ledge design)."
 }
