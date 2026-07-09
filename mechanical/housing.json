@@ -8,10 +8,10 @@
   "clearance_top": 9.0,
   "clearance_bottom": 3.0,
   "mounting": {
-    "screw": "M2",
+    "screw": "M2.5",
     "holes": [
-      { "x": 2.0,  "y": 18.0, "dia": 2.2 },
-      { "x": 18.0, "y": 2.0,  "dia": 2.2 }
+      { "x": 2.25,  "y": 2.25,  "dia": 2.5 },
+      { "x": 17.75, "y": 17.75, "dia": 2.5 }
     ]
   },
   "connectors": [
