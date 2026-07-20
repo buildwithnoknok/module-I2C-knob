@@ -6197,7 +6197,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "c26b87a3-87d0-412d-859b-a8364931180c")
-		(property "Reference" "R5"
+		(property "Reference" "R2"
 			(at 202.184 84.328 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6259,7 +6259,7 @@
 		(instances
 			(project "I2C_knob"
 				(path "/89ac1937-28eb-4c0f-a201-5c0292dd68d3"
-					(reference "R5")
+					(reference "R2")
 					(unit 1)
 				)
 			)
