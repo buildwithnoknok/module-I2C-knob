@@ -30,7 +30,7 @@ Typical use cases:
 | Connector | JST SH 4-pin (Qwiic / Stemma QT compatible) |
 | Supply voltage | 3.3 V |
 | Logic voltage | 3.3 V |
-| Hardware version | v1.0 |
+| Hardware version | v2.0 |
 
 ### Pinout (CH32V003J4M6 SOP-8)
 
@@ -41,7 +41,7 @@ Typical use cases:
 | PC4 | Push button S2 (active LOW; S1 and C are grounded) |
 | PC1 | I²C SDA |
 | PC2 | I²C SCL |
-| PD1 / PD4 / PD5 | SWDIO — firmware flashing only |
+| PD1 / PD4 / PD5 | SWDIO — firmware flashing (3-pad pogo pads, J3) + status LED (D2, active LOW) share the PD1/SWIO net |
 
 ### noknok Connector (JST SH 4-pin)
 
@@ -138,7 +138,7 @@ Flashing: normally over I²C from the Pico (`module_flasher.py` in `brain-Pico`)
 
 | Item | Status |
 |---|---|
-| Hardware | v1.0 complete |
+| Hardware | v2.0 complete |
 | Firmware | v2.1 complete (bootloader‑hosted, I²C OTA) |
 | Python driver | Complete (`NoknokKnob` in [Ecosystem repo](https://github.com/buildwithnoknok/Ecosystem/tree/main/software/pico)) |
 | Documentation | Complete |

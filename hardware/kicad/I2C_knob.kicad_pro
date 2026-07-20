@@ -224,7 +224,7 @@
       "internal_id": "",
       "mfg": "",
       "mpn": "",
-      "sch_revision": "0.8"
+      "sch_revision": "2.0"
     },
     "layer_pairs": [],
     "layer_presets": [],
@@ -473,7 +473,7 @@
     "pinned_symbol_libs": []
   },
   "meta": {
-    "filename": "I2C_RotaryEncoder.kicad_pro",
+    "filename": "I2C_knob.kicad_pro",
     "version": 3
   },
   "net_settings": {
@@ -640,18 +640,18 @@
     "subpart_id_separator": 0,
     "top_level_sheets": [
       {
-        "filename": "I2C_RotaryEncoder.kicad_sch",
-        "name": "I2C_RotaryEncoder",
+        "filename": "I2C_knob.kicad_sch",
+        "name": "I2C_knob",
         "uuid": "89ac1937-28eb-4c0f-a201-5c0292dd68d3"
       }
     ],
-    "used_designators": "J3,J5",
+    "used_designators": "",
     "variants": []
   },
   "sheets": [
     [
       "89ac1937-28eb-4c0f-a201-5c0292dd68d3",
-      "I2C_RotaryEncoder"
+      "I2C_knob"
     ]
   ],
   "text_variables": {},
