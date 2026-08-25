@@ -3,8 +3,8 @@
 Hardware design files for the noknok Knob module (CH32V003J4M6 — I2C rotary encoder with integrated push button).
 
 - KiCad project: `kicad/I2C_knob.*`
-- Schematic (PDF): `module-I2C-knob-V2_20260720.pdf`
-- BOM: `module_I2C-knob-V2_BOM.xls`
+- Schematic (PDF): `module-I2C-knob-Schematics.pdf`
+- BOM: `module_I2C-knob-BOM.xls`
 - Board renders: `module-I2C-rotaryencoder-front.png`, `module-I2C-rotaryencoder-back.png` *(pre-V2 renders — pending re-export)*
 
 Hardware is licensed CC BY-SA 4.0 (see `../LICENSE-hardware`). Connector, flashing and mounting standards follow the [noknok Ecosystem guidelines](https://github.com/buildwithnoknok/Ecosystem) (electrical + mechanical).
