@@ -27,7 +27,7 @@ Typical use cases:
 | PCB size | 20 × 20 mm |
 | MCU | CH32V003J4M6 (SOP-8) |
 | Encoder | EC11 rotary encoder with push button |
-| Connector | JST SH 4-pin (Qwiic / Stemma QT compatible) |
+| Connector | JST SH 4-pin (Qwiic / STEMMA QT compatible) |
 | Supply voltage | 3.3 V |
 | Logic voltage | 3.3 V |
 | Hardware version | v2.0 |
@@ -149,6 +149,16 @@ Flashing: normally over I²C from the Pico (`module_flasher.py` in `brain-Pico`)
 
 - Firmware / code: MIT — see [LICENSE](LICENSE).
 - Hardware (schematics, PCB layout, fab files): CC BY-SA 4.0 — see [LICENSE-hardware](LICENSE-hardware).
+
+## Trademarks
+
+**noknok** is a registered trademark in Switzerland (Swissreg 1300007033).
+
+Qwiic is a registered trademark of SparkFun Electronics, Inc. STEMMA QT is a
+trademark of Adafruit Industries, LLC. Both are named here only to state
+connector compatibility - noknok is not affiliated with, endorsed by, or
+sponsored by either company.
+---
 
 ---
 
