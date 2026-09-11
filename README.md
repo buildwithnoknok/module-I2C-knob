@@ -56,7 +56,7 @@ Typical use cases:
 
 ## Firmware
 
-**Version: v2.2.0 (bootloader‑hosted)**
+**Version: v2.3.0 (bootloader‑hosted)**
 
 ### Enumeration
 
@@ -85,7 +85,7 @@ The module uses the standard noknok dynamic enumeration protocol — no hardcode
 | `[0xB0]` | Enter bootloader — reset into the I²C bootloader for an OTA firmware update (see [Firmware](#firmware-1)) |
 | `[0xB1]` | Get version — standard noknok command; the next read returns 4 version bytes (see below) |
 
-**Version read** — `GET_VERSION` (`0xB1`) is a **noknok ecosystem-standard** command (the `0xB0`–`0xBF` range is reserved for standard commands across every module). Write `0xB1`, then read **4 bytes**: `[PROTOCOL_VERSION, FW_MAJOR, FW_MINOR, FW_PATCH]` = `[0x01, 2, 2, 0]`. Lets the Conductor compare the installed version against the version required by the product manifest. **→ Full spec:** [Ecosystem / software / readme.md §5](https://github.com/buildwithnoknok/Ecosystem/blob/main/software/readme.md#5-standard-system-commands)
+**Version read** — `GET_VERSION` (`0xB1`) is a **noknok ecosystem-standard** command (the `0xB0`–`0xBF` range is reserved for standard commands across every module). Write `0xB1`, then read **4 bytes**: `[PROTOCOL_VERSION, FW_MAJOR, FW_MINOR, FW_PATCH]` = `[0x01, 2, 3, 0]`. Lets the Conductor compare the installed version against the version required by the product manifest. **→ Full spec:** [Ecosystem / software / readme.md §5](https://github.com/buildwithnoknok/Ecosystem/blob/main/software/readme.md#5-standard-system-commands)
 
 ### Encoder counting
 
@@ -121,7 +121,7 @@ knob.set_position(50)          # set to any signed 16-bit value
 
 ## Firmware
 
-**v2.2.0 runs under the shared noknok I²C bootloader** ([module-I2C-bootloader](https://github.com/buildwithnoknok/module-I2C-bootloader)) — the module can be re‑flashed **over the I²C bus** (no SWDIO cable in the field). The application is linked at the `0x1000` offset (`app.ld`) above the 4 KB bootloader and reserves the top 16 B of RAM for the bootloader handoff cell. Command `0xB0` drops the running module into the bootloader for an update.
+**v2.3.0 runs under the shared noknok I²C bootloader** ([module-I2C-bootloader](https://github.com/buildwithnoknok/module-I2C-bootloader)) — the module can be re‑flashed **over the I²C bus** (no SWDIO cable in the field). The application is linked at the `0x1400` offset (`app.ld`) above the 5 KB stage-0 + stage-1 bootloader (layout 2) and reserves the top 16 B of RAM for the bootloader handoff cell. Command `0xB0` drops the running module into the bootloader for an update.
 
 ```bash
 cd firmware/src
@@ -136,6 +136,9 @@ Flashing: normally over I²C from the Pico (`module_flasher.py` in `brain-Pico`)
 
 ## Changelog
 
+### v2.3.0 — app base 0x1400 (bootloader layout 2)
+Relinked at the `0x1400` flash offset (bootloader **layout 2**: 1 KB stage-0 + 4 KB stage-1 below the app; was `0x1000`). Firmware behaviour unchanged. **Not compatible with the legacy monolithic bootloader or a layout-1 stage-1** — such a module gets stage-0 + stage-1 v1.1.0 over SWD first, then this app over I²C. See [module-I2C-bootloader](https://github.com/buildwithnoknok/module-I2C-bootloader).
+
 ### v2.2.0 — watchdog + boot-health handshake (DEV-31)
 Runs the independent watchdog (~2 s, kicked every main-loop pass) and writes `0` to `0x200007F8` the moment its I²C address is assigned — the app-health handshake with the stage-1 bootloader. Stage-1 counts watchdog resets and parks the module (error 7, rescued by the Conductor by UID) after three in a row, instead of booting a broken app forever. Contract: [Ecosystem / software / bootloader-update.md §3](https://github.com/buildwithnoknok/Ecosystem/blob/main/software/bootloader-update.md). No protocol or command change.
 
@@ -147,7 +150,7 @@ See the git history.
 | Item | Status |
 |---|---|
 | Hardware | v2.0 complete |
-| Firmware | v2.2.0 complete (bootloader‑hosted, I²C OTA) |
+| Firmware | v2.3.0 complete (bootloader‑hosted, I²C OTA) |
 | Python driver | Complete (`NoknokKnob` in [Ecosystem repo](https://github.com/buildwithnoknok/Ecosystem/tree/main/software/pico)) |
 | Documentation | Complete |
 

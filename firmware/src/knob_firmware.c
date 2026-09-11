@@ -78,7 +78,7 @@
  * release tag. Reported on a GET_VERSION (0xB1) read. */
 #define PROTOCOL_VERSION 0x01
 #define FW_VERSION_MAJOR 2
-#define FW_VERSION_MINOR 2
+#define FW_VERSION_MINOR 3
 #define FW_VERSION_PATCH 0
 
 /* Bootloader handoff cell — top 16 B of RAM, reserved by app.ld (stack ends
