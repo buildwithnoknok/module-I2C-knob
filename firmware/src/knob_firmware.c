@@ -1,5 +1,8 @@
 /*
- * noknok Knob Module Firmware  v2.1
+ * noknok Knob Module Firmware  v2.2.0
+ *
+ * v2.2.0: DEV-31 hardening C — independent watchdog + boot-attempt handshake
+ *   with stage-1 (clears the counter once an I2C address is assigned).
  * CH32V003J4M6 (SOP-8)  |  Stack: cnlohr/ch32fun
  *
  * ── Hardware ─────────────────────────────────────────────────────────────
@@ -75,7 +78,7 @@
  * release tag. Reported on a GET_VERSION (0xB1) read. */
 #define PROTOCOL_VERSION 0x01
 #define FW_VERSION_MAJOR 2
-#define FW_VERSION_MINOR 1
+#define FW_VERSION_MINOR 2
 #define FW_VERSION_PATCH 0
 
 /* Bootloader handoff cell — top 16 B of RAM, reserved by app.ld (stack ends
@@ -84,6 +87,27 @@
  * Magic + address MUST match noknok_bootloader. */
 #define BL_MAGIC_CELL   (*(volatile uint32_t *)0x200007F0U)
 #define BL_MAGIC_ENTER  0x6E6B4231U   /* "nkB1" */
+
+/* ── App health handshake with stage-1 (DEV-31 hardening C) ──────────────────
+ * Stage-1 counts every boot of this app in a no-init RAM cell and stops booting
+ * it after three consecutive warm resets without the app ever proving itself,
+ * parking the module in the bootloader at 0x7E so the host can push a good
+ * image instead. That turns "a broken app with a valid CRC is booted forever"
+ * into "a broken app gets three tries". Two things make it work here:
+ *   - the independent watchdog, so a hang becomes a warm reset (~2 s), and
+ *   - clearing the counter the moment we KNOW we are healthy: an I2C address
+ *     has been assigned, i.e. enumeration completed, i.e. I2C works.
+ * Address and tag must match noknok_stage1. */
+#define BOOT_ATTEMPT_CELL (*(volatile uint32_t *)0x200007F8U)
+
+static void iwdg_init(void)
+{
+    /* LSI ~128 kHz / 64 = 2 kHz; reload 4095 -> ~2.05 s. Hardware starts LSI. */
+    IWDG->CTLR = 0x5555;  IWDG->PSCR = 4;
+    IWDG->CTLR = 0x5555;  IWDG->RLDR = 0xFFF;
+    IWDG->CTLR = 0xCCCC;  /* start — cannot be stopped except by reset */
+}
+static inline void iwdg_kick(void) { IWDG->CTLR = 0xAAAA; }
 
 #define UID_ADDR        ((volatile uint8_t*)0x1FFFF7E8)
 #define UID_LEN         8
@@ -523,6 +547,7 @@ static void poll_button(void)
 int main(void)
 {
     SystemInit();
+    iwdg_init();          /* hardening C: hang -> warm reset -> stage-1 counts it */
     tim2_init();
     encoder_gpio_init();
 
@@ -537,6 +562,7 @@ int main(void)
     while (1)
     {
         uint32_t now = ms_tick;
+        iwdg_kick();          /* every loop iteration; nothing here blocks > 2 s */
 
         /* ── Enumeration state machine ─────────────────────────── */
 
@@ -558,6 +584,7 @@ int main(void)
         {
             i2c_switch_addr(new_addr);
             dev_state = DEV_ASSIGNED;
+            BOOT_ATTEMPT_CELL = 0;   /* healthy: I2C works, enumeration done */
         }
 
         /* ── Normal operation ──────────────────────────────────── */
