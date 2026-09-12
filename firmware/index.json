@@ -3,5 +3,7 @@
   "version": "2.3.0",
   "url": "https://raw.githubusercontent.com/buildwithnoknok/module-I2C-knob/main/firmware/bin/knob_firmware.bin",
   "layout": 2,
+  "size": 2708,
+  "crc32": "3f2c5879",
   "released": "2026-09-11"
 }
