@@ -2,6 +2,6 @@
   "module": "knob",
   "version": "2.3.0",
   "url": "https://raw.githubusercontent.com/buildwithnoknok/module-I2C-knob/main/firmware/bin/knob_firmware.bin",
-  "requires_bootloader": "stage1",
+  "layout": 2,
   "released": "2026-09-11"
 }
