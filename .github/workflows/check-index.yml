@@ -1,0 +1,15 @@
+# firmware/index.json must match the committed binary and the source (DEV-32 D7).
+# See Ecosystem/software/firmware-index.md. The check itself is tools/check_index.py.
+name: check index.json
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check-index:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: index.json matches binary, app.ld and FW_VERSION_*
+        run: python3 tools/check_index.py
