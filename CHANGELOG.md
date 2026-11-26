@@ -7,6 +7,7 @@ Convention: Confluence "Development Conventions" (SD space, page 120160257).
 ## 2.4.0 - 2026-11-20
 
 - DEV-21 - answers the new standard command `0xB4` GET_ID (ADR-005): write `[0xB4]`, the next read returns the 10-byte identity `[UID x8][TYPE][CRC8]`, identical to the 0x7F enumeration reply; latched in the I2C ISR at STOP like `0xB1` (never via the main loop). `0xB1` and `PROTOCOL_VERSION` (0x01) unchanged. Adds the 20-byte application header `{"NKA1", "V003", layout 2, version, type 0x02}` at app base + 0x100 (app.ld places it; the build asserts size and position) that the DEV-22 stage-1 copies into the metadata page at VERIFY. Not tested on hardware yet (bench list in the DEV-21 comment). Breaking: no.
+- DEV-21 - release binary built on the bench toolchain (gcc 14.2.0, ch32fun 95030fd), so it can be rebuilt byte for byte from this source: app 2764 B, crc32 `94bb1c7d`; full image crc32 `ddbf4529`. Same source and version as the first 2026-11-20 build, which was made on another toolchain and is not reproducible.
 
 ## Full image - 2026-11-19
 

@@ -6,13 +6,13 @@
   "file": "firmware/bin/knob_full.bin",
   "flash_at": "0x08000000",
   "size": 16384,
-  "crc32": "1ebf99fc",
+  "crc32": "ddbf4529",
   "app": {
     "source": "firmware/bin/knob_firmware.bin",
     "version": "2.4.0",
     "offset": "0x1400",
-    "size": 2772,
-    "crc32": "7dc51877"
+    "size": 2764,
+    "crc32": "94bb1c7d"
   },
   "bootloader": [
     {
